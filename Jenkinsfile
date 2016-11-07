@@ -48,13 +48,5 @@ node {
         npm run ci
       '''
     }
-
-    stage ("release") {
-      sh '''
-        #!/bin/bash
-        source ./scripts/jenkins_env.bash
-        ./scripts/jenkins_release.bash
-      '''
-    }
   }
 }
