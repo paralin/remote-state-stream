@@ -1,0 +1,14 @@
+{
+  "name": "remote-state-stream",
+  "description": "Stream a state stream over grpc-bus.",
+  "scripts": {
+    "test": "exit 0",
+    "ci": "npm run test"
+  },
+  "author": "Christian Stewart <christian@paral.in>",
+  "license": "Unlicensed",
+  "dependencies": {
+    "@fusebot/state-stream": "0.0.2",
+    "grpc-bus": "^0.1.0"
+  }
+}
