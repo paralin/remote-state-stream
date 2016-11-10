@@ -1,6 +1,5 @@
 {
   "name": "remote-state-stream",
-  "version": "0.0.1",
   "description": "Stream a state stream over grpc-bus.",
   "author": "Christian Stewart <christian@paral.in>",
   "license": "UNLICENSED",
@@ -16,7 +15,8 @@
     "lint": "tslint -c tslint.json src/**/*.ts --type-check",
     "build": "tsc",
     "mocha": "ts-node node_modules/istanbul/lib/cli.js cover -e .ts  -x \"*.d.ts\" -x \"*.spec.ts\" node_modules/jasmine/bin/jasmine.js -- JASMINE_CONFIG_PATH=jasmine.json",
-    "mocha-nocover": "ts-node node_modules/jasmine/bin/jasmine.js -- JASMINE_CONFIG_PATH=jasmine.json"
+    "mocha-nocover": "ts-node node_modules/jasmine/bin/jasmine.js -- JASMINE_CONFIG_PATH=jasmine.json",
+    "semantic-release": "semantic-release pre && npm publish && semantic-release post"
   },
   "dependencies": {
     "@fusebot/fusecloud-common": "^0.13.0",
@@ -33,6 +33,7 @@
     "babel-core": "^6.18.0",
     "babel-preset-es2015": "^6.18.0",
     "codelyzer": "0.0.28",
+    "semantic-release": "^4.3.5",
     "cz-conventional-changelog": "^1.2.0",
     "istanbul": "^1.1.0-alpha.1",
     "jasmine": "^2.5.2",
