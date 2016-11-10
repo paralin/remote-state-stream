@@ -19,12 +19,13 @@
     "mocha-nocover": "ts-node node_modules/jasmine/bin/jasmine.js -- JASMINE_CONFIG_PATH=jasmine.json"
   },
   "dependencies": {
-    "@fusebot/fusecloud-common": "^0.12.2",
+    "@fusebot/fusecloud-common": "^0.13.0",
     "@fusebot/state-stream": "0.1.1",
     "grpc-bus": "^0.1.0",
-    "rxjs": "^5.0.0-rc.1"
+    "rxjs": "^5.0.0-rc.2"
   },
   "devDependencies": {
+    "@types/chai": "^3.4.34",
     "@types/es6-promise": "0.0.32",
     "@types/jasmine": "^2.5.36",
     "@types/node": "^6.0.46",
