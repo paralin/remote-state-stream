@@ -1,6 +1,6 @@
 import {
-  RemoteStream,
-} from './remote-stream';
+  RemoteStreamBackend,
+} from './remote-stream-backend';
 import {
   MockViewService,
 } from './mock/service';
@@ -13,14 +13,14 @@ import {
   NoDataError,
 } from '@fusebot/state-stream';
 
-describe('RemoteStream', () => {
-  let remoteStream: RemoteStream;
+describe('RemoteStreamBackend', () => {
+  let remoteStream: RemoteStreamBackend;
   let mockService: MockViewService;
   let cursor: Cursor;
 
   beforeEach(() => {
     mockService = new MockViewService();
-    remoteStream = new RemoteStream(<any>mockService, {});
+    remoteStream = new RemoteStreamBackend(<any>mockService, {});
     cursor = new Cursor(remoteStream, CursorType.ReadBidirectionalCursor);
   });
 

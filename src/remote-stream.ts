@@ -1,135 +1,26 @@
 import {
-  IStorageBackend,
-  StreamEntry,
-  StreamEntryType,
-} from '@fusebot/state-stream';
-import {
-  IStateContext,
-} from '@fusebot/fusecloud-common';
-import {
-  Subscription,
-} from 'rxjs/Subscription';
-import {
-  WindowStore,
-} from './window-store';
-import {
-  Window,
-  WindowState,
-} from './window';
+  RemoteStreamBackend,
+} from './remote-stream-backend';
 import {
   IServiceHandle,
 } from 'grpc-bus';
+import {
+  CursorType,
+} from '@fusebot/state-stream';
 
-export class RemoteStream implements IStorageBackend {
-  public windowStore: WindowStore;
+export class RemoteStream {
+  private backend: RemoteStreamBackend;
 
   constructor(private serviceHandle: IServiceHandle,
               private streamContext: IStateContext) {
-    this.windowStore = new WindowStore(serviceHandle, streamContext);
+    this.backend = new RemoteStreamBackend(serviceHandle, streamContext);
   }
 
-  // Builds a window not in pending state.
-  public async resolveWindowForTimestamp(timestamp: Date): Promise<Window> {
-    let window = await this.windowStore.buildWindow(timestamp);
-    return new Promise<Window>((resolve, reject) => {
-      let sub: Subscription;
-      let failedSub: Subscription;
-      let clearSub = () => {
-        if (sub) {
-          sub.unsubscribe();
-        }
-        if (failedSub) {
-          failedSub.unsubscribe();
-        }
-      };
-      sub = window.state.subscribe((state) => {
-        if (state > WindowState.Pending) {
-          clearSub();
-          resolve(window);
-          return;
-        }
-      });
-      failedSub = window.failed.subscribe((err: any) => {
-        clearSub();
-        reject(err);
-      });
-    });
-  }
-
-  public async getSnapshotBefore(timestamp: Date): Promise<StreamEntry> {
-    let window = await this.resolveWindowForTimestamp(timestamp);
-    if (window.state.value === WindowState.OutOfRange) {
-      return null;
-    }
-    return window.data ? window.data.startBound : null;
-  }
-
-  public async getEntryAfter(timestamp: Date, filterType: StreamEntryType): Promise<StreamEntry> {
-    let window = await this.resolveWindowForTimestamp(timestamp);
-    if (filterType === StreamEntryType.StreamEntrySnapshot) {
-      return window.data.endBound;
-    }
-    let clearSub: () => void;
-    let promis = new Promise<StreamEntry>((resolve, reject) => {
-      let entryMatches = (entry: StreamEntry) => {
-        return entry.timestamp.getTime() > timestamp.getTime() &&
-               (filterType === StreamEntryType.StreamEntryAny ||
-               filterType === entry.type);
-      };
-      for (let entry of window.data.dataset) {
-        if (entryMatches(entry)) {
-          resolve(entry);
-          return;
-        }
-      }
-      let entrySub: Subscription;
-      let stateSub: Subscription;
-      clearSub = () => {
-        if (entrySub) {
-          entrySub.unsubscribe();
-        }
-        if (stateSub) {
-          stateSub.unsubscribe();
-        }
-      };
-      stateSub = window.state.subscribe((state) => {
-        if (state === WindowState.Failed) {
-          reject(new Error('Window failed.'));
-          return;
-        }
-        if (state === WindowState.OutOfRange) {
-          resolve(null);
-          return;
-        }
-        if (state === WindowState.Committed) {
-          if (window.data.endBound && entryMatches(window.data.endBound)) {
-            resolve(window.data.endBound);
-          } else {
-            // TODO: decide if we resolve null here, or try again with a new live cursor.
-            resolve(null);
-          }
-        }
-      });
-      entrySub = window.entryAdded.subscribe((entry) => {
-        if (entryMatches(entry)) {
-          resolve(entry);
-          return;
-        }
-      });
-    });
-    promis.then(clearSub, clearSub);
-    return promis;
-  }
-
-  public saveEntry(entry: StreamEntry) {
-    throw new Error('Cannot save to remote streams.');
-  }
-
-  public amendEntry(entry: StreamEntry, oldTimestamp: Date) {
-    throw new Error('Cannot save to remote streams.');
+  public buildCursor(cursorType: CursorType) {
+    return new Cursor(this.backend, cursorType);
   }
 
   public dispose() {
-    this.windowStore.dispose();
+    this.backend.dispose();
   }
 }
