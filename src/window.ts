@@ -46,6 +46,7 @@ export class Window {
   public failed: Subject<any> = new Subject<any>();
   // Called when disposed
   public disposed: Subject<void> = new Subject<void>();
+  public entryAdded: Subject<StreamEntry> = new Subject<StreamEntry>();
 
   private started: boolean = false;
   private callHandle: ICallHandle;
@@ -70,6 +71,11 @@ export class Window {
       return;
     }
     this.startResolveRequest();
+  }
+
+  public get isInErrorState() {
+    return this.state.value === WindowState.OutOfRange ||
+      this.state.value === WindowState.Failed;
   }
 
   // Release everything
@@ -113,11 +119,6 @@ export class Window {
     } catch (e) {
       this.failWithError(e);
     }
-  }
-
-  private get isInErrorState() {
-    return this.state.value === WindowState.OutOfRange ||
-      this.state.value === WindowState.Failed;
   }
 
   private decodeState(state: IStateEntry): StreamEntry {
@@ -168,6 +169,7 @@ export class Window {
         if (this.state.value === WindowState.Pending) {
           this.state.next(WindowState.Pulling);
         }
+        this.entryAdded.next(decodedState);
         break;
       case BoundedStateHistoryStatus.BOUNDED_HISTORY_TAIL:
         if (!decodedState) {
@@ -179,6 +181,7 @@ export class Window {
           return;
         }
         this.data.dataset.push(decodedState);
+        this.entryAdded.next(decodedState);
         break;
     }
 
