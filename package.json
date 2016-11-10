@@ -8,7 +8,7 @@
   "author": "Christian Stewart <christian@paral.in>",
   "license": "Unlicensed",
   "dependencies": {
-    "@fusebot/state-stream": "0.1.0",
+    "@fusebot/state-stream": "0.1.1",
     "grpc-bus": "^0.1.0"
   }
 }
