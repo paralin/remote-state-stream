@@ -5,8 +5,12 @@ import {
   IServiceHandle,
 } from 'grpc-bus';
 import {
+  Cursor,
   CursorType,
 } from '@fusebot/state-stream';
+import {
+  IStateContext,
+} from '@fusebot/fusecloud-common';
 
 export class RemoteStream {
   private backend: RemoteStreamBackend;
