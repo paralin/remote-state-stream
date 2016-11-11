@@ -51,9 +51,9 @@ export class RemoteStream {
 
   private async buildLiveCursor(): Promise<Cursor> {
     // Initialize the live cursor.
-    let latestTimestamp = new Date(0);
     let cursor = new Cursor(this.backend, CursorType.WriteCursor);
     await cursor.init();
+    let latestTimestamp = new Date(cursor.computedTimestamp.getTime());
     let subscriptions: Subscription[] = [];
     let nextLiveWindow = async () => {
       // Clear our old subscriptions
@@ -63,7 +63,14 @@ export class RemoteStream {
       subscriptions.length = 0;
 
       let liveWindow: Window = await this.backend.windowStore.buildWindow();
+      let startBoundHandled = false;
       subscriptions.push(liveWindow.state.subscribe((state) => {
+        if (!startBoundHandled && liveWindow.data.startBound) {
+          if (liveWindow.data.startBound.timestamp.getTime() > latestTimestamp.getTime()) {
+            cursor.handleEntry(liveWindow.data.startBound);
+          }
+          startBoundHandled = true;
+        }
         if (liveWindow.isInErrorState || state === WindowState.Committed) {
           nextLiveWindow();
           return;
