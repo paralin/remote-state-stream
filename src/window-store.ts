@@ -129,6 +129,7 @@ export class WindowStore {
   }
 
   private getExistingWindow(midTime: Date): Window {
+    /*
     if (!midTime) {
       // Find live window.
       if (this.windows.length) {
@@ -139,6 +140,7 @@ export class WindowStore {
       }
       return null;
     }
+    */
     for (let wind of this.windows) {
       // If the window is not pending, and within time range.
       if (wind.containsDate(midTime)) {
