@@ -1,5 +1,5 @@
 {
-  "name": "remote-state-stream",
+  "name": "@fusebot/remote-state-stream",
   "description": "Stream a state stream over grpc-bus.",
   "author": "Christian Stewart <christian@paral.in>",
   "license": "UNLICENSED",
