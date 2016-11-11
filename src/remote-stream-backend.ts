@@ -84,6 +84,7 @@ export class RemoteStreamBackend implements IStorageBackend {
       }
       let entrySub: Subscription;
       let stateSub: Subscription;
+      let failSub: Subscription;
       clearSub = () => {
         if (entrySub) {
           entrySub.unsubscribe();
@@ -91,10 +92,21 @@ export class RemoteStreamBackend implements IStorageBackend {
         if (stateSub) {
           stateSub.unsubscribe();
         }
+        if (failSub) {
+          failSub.unsubscribe();
+        }
       };
+      let failError: any;
+      failSub = window.failed.subscribe((reason) => {
+        failError = reason;
+      });
       stateSub = window.state.subscribe((state) => {
         if (state === WindowState.Failed) {
-          reject(new Error('Window failed.'));
+          if (failError) {
+            reject(new Error('Window failed with error: ' + failError));
+          } else {
+            reject(new Error('Window failed.'));
+          }
           return;
         }
         if (state === WindowState.OutOfRange) {
@@ -108,6 +120,11 @@ export class RemoteStreamBackend implements IStorageBackend {
             // TODO: decide if we resolve null here, or try again with a new live cursor.
             resolve(null);
           }
+        }
+        // If we reach a live state, give the latest possible data.
+        if (state === WindowState.Live) {
+          resolve(null);
+          return;
         }
       });
       entrySub = window.entryAdded.subscribe((entry) => {

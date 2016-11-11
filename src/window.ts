@@ -55,14 +55,17 @@ export class Window {
   constructor(private serviceHandle: IServiceHandle,
               private streamContext: IStateContext,
               public midTimestamp: Date) {
+    if (!midTimestamp) {
+      throw new Error('Mid timestamp must be set.');
+    }
   }
 
   public containsDate(midTime: Date) {
     let wind = this;
     return wind.state.value !== WindowState.Pending &&
-           wind.data.startBound.timestamp.getTime() < midTime.getTime() &&
+           wind.data.startBound.timestamp.getTime() <= midTime.getTime() &&
            (!wind.data.endBound ||
-            wind.data.endBound.timestamp.getTime() > midTime.getTime());
+            wind.data.endBound.timestamp.getTime() >= midTime.getTime());
   }
 
   // Start the data pull process.
@@ -92,9 +95,9 @@ export class Window {
       }
       this.callHandle = null;
     }
-    this.data = null;
     if (this.state.value !== WindowState.Committed &&
         this.state.value !== WindowState.Failed) {
+      this.failed.next(new Error('Window disposed before finished.'));
       this.state.next(WindowState.Failed);
     }
   }
@@ -103,6 +106,7 @@ export class Window {
     try {
       let req: IBoundedStateHistoryRequest = {
         context: this.streamContext,
+        // todo: figure out why midTimestamp is null sometimes.
         mid_timestamp: this.midTimestamp.getTime(),
         mode: BoundedStateHistoryMode.SNAPSHOT_BOUND,
       };
@@ -126,9 +130,13 @@ export class Window {
       return null;
     }
     let data = JSON.parse(state.json_state);
+    let timestamp: any = state.timestamp;
+    if (timestamp && typeof timestamp.toNumber === 'function') {
+      timestamp = timestamp.toNumber();
+    }
     return {
       data,
-      timestamp: new Date(state.timestamp),
+      timestamp: new Date(timestamp),
       type: state.type,
     };
   }
@@ -192,6 +200,11 @@ export class Window {
   }
 
   private handleEnded() {
+    if (this.callHandle) {
+      // make sure the call is disposed
+      this.callHandle.terminate();
+      this.callHandle = null;
+    }
     if (this.isInErrorState || this.state.value === WindowState.Committed) {
       return;
     }
