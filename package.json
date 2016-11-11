@@ -1,6 +1,6 @@
 {
   "name": "@fusebot/remote-state-stream",
-  "description": "Stream a state stream over grpc-bus.",
+  "description": "Track a remote stream via grpc-bus and the view api.",
   "author": "Christian Stewart <christian@paral.in>",
   "license": "UNLICENSED",
   "main": "./lib/index.js",
