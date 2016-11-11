@@ -59,7 +59,7 @@ export class WindowStore {
         return;
       }
 
-      this.pendingWindow = new Window(this.serviceHandle, this.streamContext, interest.timestamp);
+      this.pendingWindow = new Window(this.serviceHandle, this.streamContext, interest.timestamp || new Date());
       let stateSub = this.pendingWindow.state.subscribe((state) => {
         if (state === WindowState.Pending) {
           return;
@@ -129,7 +129,6 @@ export class WindowStore {
   }
 
   private getExistingWindow(midTime: Date): Window {
-    /*
     if (!midTime) {
       // Find live window.
       if (this.windows.length) {
@@ -140,7 +139,6 @@ export class WindowStore {
       }
       return null;
     }
-    */
     for (let wind of this.windows) {
       // If the window is not pending, and within time range.
       if (wind.containsDate(midTime)) {
