@@ -139,11 +139,11 @@ export class RemoteStreamBackend implements IStorageBackend {
   }
 
   public saveEntry(entry: StreamEntry) {
-    throw new Error('Cannot save to remote streams.');
+    // throw new Error('Cannot save to remote streams.');
   }
 
   public amendEntry(entry: StreamEntry, oldTimestamp: Date) {
-    throw new Error('Cannot save to remote streams.');
+    // throw new Error('Cannot save to remote streams.');
   }
 
   public dispose() {
