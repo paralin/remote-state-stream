@@ -13,7 +13,7 @@
     "test": "npm run lint && npm run mocha",
     "ci": "npm run build && npm run test",
     "lint": "tslint -c tslint.json src/**/*.ts --type-check",
-    "build": "tsc",
+    "build": "tsc && ./scripts/build_touchups.bash",
     "mocha": "ts-node node_modules/istanbul/lib/cli.js cover -e .ts  -x \"*.d.ts\" -x \"*.spec.ts\" node_modules/jasmine/bin/jasmine.js -- JASMINE_CONFIG_PATH=jasmine.json",
     "mocha-nocover": "ts-node node_modules/jasmine/bin/jasmine.js -- JASMINE_CONFIG_PATH=jasmine.json",
     "semantic-release": "semantic-release pre && npm publish && semantic-release post"
