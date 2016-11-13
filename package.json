@@ -1,6 +1,6 @@
 {
   "name": "@fusebot/remote-state-stream",
-  "description": "Track a remote stream via grpc-bus and the view api.",
+  "description": "Track a remote stream with windows of data.",
   "author": "Christian Stewart <christian@paral.in>",
   "license": "UNLICENSED",
   "main": "./lib/index.js",
@@ -14,13 +14,11 @@
     "ci": "npm run build && npm run test",
     "lint": "tslint -c tslint.json src/**/*.ts --type-check",
     "build": "tsc && ./scripts/build_touchups.bash",
-    "mocha": "ts-node node_modules/istanbul/lib/cli.js cover -e .ts  -x \"*.d.ts\" -x \"*.spec.ts\" node_modules/jasmine/bin/jasmine.js -- JASMINE_CONFIG_PATH=jasmine.json",
-    "mocha-nocover": "ts-node node_modules/jasmine/bin/jasmine.js -- JASMINE_CONFIG_PATH=jasmine.json",
+    "mocha": "ts-node node_modules/istanbul/lib/cli.js cover -e .ts  -x \"*.d.ts\" -x \"*.spec.ts\" test/run_tests.js",
+    "mocha-nocover": "ts-node test/run_tests.js",
     "semantic-release": "semantic-release pre && npm publish && semantic-release post"
   },
   "dependencies": {
-    "@fusebot/fusecloud-common": "^0.14.0",
-    "@fusebot/state-stream": "^0.2.0",
     "grpc-bus": "^0.2.0",
     "rxjs": "^5.0.0-rc.2"
   },
@@ -38,6 +36,7 @@
     "cz-conventional-changelog": "^1.2.0",
     "istanbul": "^1.1.0-alpha.1",
     "jasmine": "^2.5.2",
+    "jasmine-console-reporter": "^1.2.7",
     "ts-node": "^1.4.1",
     "tslint": "^3.15.1",
     "typescript": "~2.1.1"

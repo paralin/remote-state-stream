@@ -1,42 +1,35 @@
 import {
-  Window,
+  IWindow,
   WindowState,
 } from './window';
-import {
-  IServiceHandle,
-} from 'grpc-bus';
-import {
-  IStateContext,
-} from '@fusebot/fusecloud-common';
 
 // When we need a window for a period of time.
 interface IPendingWindowInterest {
   // Timestamp we need a window for. Null for live.
   timestamp?: Date;
   // When we have instantiated a window for this timestamp.
-  filledCallback: {resolve: (wind: Window) => void, reject: (err: any) => void};
+  filledCallback: {resolve: (wind: IWindow) => void, reject: (err: any) => void};
 }
 
 // A time-linear storage of windows.
 export class WindowStore {
   // List of windows ordered by time.
-  private windows: Window[] = [];
+  private windows: IWindow[] = [];
   // Time interests.
   private pendingInterests: IPendingWindowInterest[] = [];
   // Current window pending scope.
-  private pendingWindow: Window;
+  private pendingWindow: IWindow;
 
-  constructor(private serviceHandle: IServiceHandle,
-              private streamContext: IStateContext) {
+  constructor(private windowFactory: () => IWindow) {
   }
 
   // Build a window for a period of time, or null for live.
-  public async buildWindow(midTime?: Date): Promise<Window> {
+  public async buildWindow(midTime?: Date): Promise<IWindow> {
     let exist = this.getExistingWindow(midTime);
     if (exist) {
       return exist;
     }
-    return new Promise<Window>((resolve, reject) => {
+    return new Promise<IWindow>((resolve, reject) => {
       // Insert an interest record
       this.registerInterest({
         timestamp: midTime,
@@ -59,7 +52,7 @@ export class WindowStore {
         return;
       }
 
-      this.pendingWindow = new Window(this.serviceHandle, this.streamContext, interest.timestamp || new Date());
+      this.pendingWindow = this.windowFactory();
       let stateSub = this.pendingWindow.state.subscribe((state) => {
         if (state === WindowState.Pending) {
           return;
@@ -74,7 +67,11 @@ export class WindowStore {
         this.procInterest();
       });
       interest.filledCallback.resolve(this.pendingWindow);
-      this.pendingWindow.start();
+      if (interest.timestamp) {
+        this.pendingWindow.initWithMidTimestamp(interest.timestamp);
+      } else {
+        this.pendingWindow.initLive();
+      }
     }
 
     if (this.pendingWindow) {
@@ -94,16 +91,16 @@ export class WindowStore {
   }
 
   // Insert a non-pending window
-  private insertWindow(window: Window) {
-    if (!window.data.endBound) {
+  private insertWindow(window: IWindow) {
+    if (!window.meta.value.endBound) {
       this.windows.splice(this.windows.length, 0, window);
       return;
     }
 
-    let time = window.data.endBound.timestamp.getTime();
+    let time = window.meta.value.endBound.getTime();
     // Insertion sort.
     for (let idx = 0; idx < this.windows.length; idx++) {
-      if (this.windows[idx].data.startBound.timestamp.getTime() > time) {
+      if (this.windows[idx].meta.value.startBound.getTime() > time) {
         this.windows.splice(idx + 1, 0, window);
         return;
       }
@@ -117,7 +114,8 @@ export class WindowStore {
     let newPendingInterests: IPendingWindowInterest[] = [];
     for (let interest of this.pendingInterests) {
       if (this.pendingWindow &&
-          this.pendingWindow.midTimestamp.getTime() === interest.timestamp.getTime()) {
+          this.pendingWindow.state.value !== WindowState.Pending &&
+          this.pendingWindow.containsTimestamp(interest.timestamp)) {
         interest.filledCallback.resolve(this.pendingWindow);
         continue;
       }
@@ -128,7 +126,7 @@ export class WindowStore {
     this.pendingInterests = newPendingInterests;
   }
 
-  private getExistingWindow(midTime: Date): Window {
+  private getExistingWindow(midTime: Date): IWindow {
     if (!midTime) {
       // Find live window.
       if (this.windows.length) {
@@ -141,7 +139,7 @@ export class WindowStore {
     }
     for (let wind of this.windows) {
       // If the window is not pending, and within time range.
-      if (wind.containsDate(midTime)) {
+      if (wind.containsTimestamp(midTime)) {
         return wind;
       }
     }

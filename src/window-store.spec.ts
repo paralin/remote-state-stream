@@ -5,24 +5,28 @@ import {
   WindowState,
 } from './window';
 import {
-  MockViewService,
-} from './mock/service';
-import {
   mockTime,
 } from './mock/time';
+import {
+  MockWindow,
+} from './mock/mock-window';
 
 describe('WindowStore', () => {
   let store: WindowStore;
-  let mockService: MockViewService;
 
   beforeEach(() => {
-    mockService = new MockViewService();
-    store = new WindowStore(<any>mockService, {});
+    store = new WindowStore(() => {
+      return new MockWindow();
+    });
   });
 
   it('should fetch the beginning set', (done) => {
     store.buildWindow(mockTime(-7)).then((window) => {
       window.state.subscribe((state) => {
+        if (state === WindowState.Waiting) {
+          expect(window.meta.value.startBound).toEqual(mockTime(-10));
+          window.activate();
+        }
         if (state === WindowState.Committed) {
           done();
         }
@@ -34,6 +38,9 @@ describe('WindowStore', () => {
     let committedComplete = false;
     store.buildWindow(mockTime(-7)).then((window) => {
       window.state.subscribe((state) => {
+        if (state === WindowState.Waiting) {
+          window.activate();
+        }
         if (state === WindowState.Committed) {
           committedComplete = true;
         }
@@ -41,6 +48,9 @@ describe('WindowStore', () => {
     });
     store.buildWindow(mockTime(-8)).then((window) => {
       window.state.subscribe((state) => {
+        if (state === WindowState.Waiting) {
+          window.activate();
+        }
         if (state === WindowState.Committed) {
           expect(committedComplete).toBe(true);
           done();
@@ -52,8 +62,9 @@ describe('WindowStore', () => {
   it('should reject in-progress windows', (done) => {
     store.buildWindow(mockTime(20)).then((window) => {
       window.state.subscribe((state) => {
-        // call start to trigger else path of started
-        window.start();
+        if (state === WindowState.Waiting) {
+          window.activate();
+        }
         if (state === WindowState.Pulling) {
           window.dispose();
           // call twice to hit line checking isDisposed
