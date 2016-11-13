@@ -19,6 +19,7 @@
     "semantic-release": "semantic-release pre && npm publish && semantic-release post"
   },
   "dependencies": {
+    "@fusebot/state-stream": "^0.2.0",
     "grpc-bus": "^0.2.0",
     "rxjs": "^5.0.0-rc.2"
   },
