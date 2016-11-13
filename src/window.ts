@@ -9,6 +9,8 @@ import {
   IStorageBackend,
 } from '@fusebot/state-stream';
 
+export type WindowFactory = () => IWindow;
+
 export enum WindowState {
   // Metadata unknown, resolving middle timestamp query.
   Pending = 0,
@@ -51,6 +53,8 @@ export interface IWindow {
 
   initLive(): void;
   initWithMidTimestamp(midTimestamp: Date): void;
+  initWithMetadata(meta: IWindowMeta): void;
+
   containsTimestamp(midTimestamp: Date): boolean;
 
   // start the pulling process

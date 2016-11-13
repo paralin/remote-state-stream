@@ -10,14 +10,19 @@ import {
 import {
   MockWindow,
 } from './mock/mock-window';
+import {
+  WindowMultiplexerFactory,
+} from './window-multiplexer';
 
 describe('WindowStore', () => {
   let store: WindowStore;
+  let windowFactory: WindowMultiplexerFactory;
 
   beforeEach(() => {
-    store = new WindowStore(() => {
+    windowFactory = new WindowMultiplexerFactory([() => {
       return new MockWindow();
-    });
+    }]);
+    store = new WindowStore(windowFactory.getFactoryFcn());
   });
 
   it('should fetch the beginning set', (done) => {

@@ -33,6 +33,7 @@ To make a window we need to know the snapshot before and after the window.
 Windows have the following states:
 
  - Pending: a window without a start/end but a middle.
+ - Waiting: we have the metadata, no data yet.
  - Pulling: a window pulling data still, but begin and end bound is known.
  - Committed: all data fetched for window.
  - Live: a window with a start + no end, initial set complete, waiting for live to end.
@@ -43,3 +44,14 @@ When the state stream asks for a snapshot before:
 
  - Check if we have a window covering that range, if so, skip
  - Create pending window
+
+Window Multiplexer Implementation
+=================================
+
+A window multiplexer is a IWindow implementation provided with the package.
+
+It allows the user to provide multiple window factories, and add/remove these over time.
+
+It will resolve windows using these factories, and use some internal algorithms to rate window sources and selectively pull from them.
+
+The current implementation attempts requests against all the window sources, and whichever responds first will be used, and the others canceled.

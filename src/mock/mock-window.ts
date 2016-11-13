@@ -13,23 +13,11 @@ import {
 } from '@fusebot/state-stream';
 import { mockDataset } from './mock-data';
 import { mockTime } from './time';
-
-export class MockWindowData extends MemoryBackend implements IWindowData {
-  public entryAdded = new Subject<StreamEntry>();
-
-  constructor() {
-    super();
-  }
-
-  public saveEntry(entry: StreamEntry) {
-    super.saveEntry(entry);
-    this.entryAdded.next(entry);
-  }
-}
+import { StreamingBackend } from '../streaming-backend';
 
 export class MockWindow implements IWindow {
   public state: BehaviorSubject<WindowState> = new BehaviorSubject<WindowState>(WindowState.Pending);
-  public data: IWindowData = new MockWindowData();
+  public data: IWindowData = new StreamingBackend();
   public meta = new BehaviorSubject<IWindowMeta>(null);
   // If we failed to reach Committed state, this will push an error.
   public error = new BehaviorSubject<any>(null);
@@ -38,6 +26,9 @@ export class MockWindow implements IWindow {
   private isDisposed = false;
 
   private dataset = new MemoryBackend(mockDataset());
+
+  constructor(private mockDelay: number = 100) {
+  }
 
   public initLive() {
     // Simulate fetching early bound.
@@ -59,7 +50,12 @@ export class MockWindow implements IWindow {
       };
       this.meta.next(meta);
       this.state.next(WindowState.Waiting);
-    }, 100);
+    }, this.mockDelay);
+  }
+
+  public initWithMetadata(meta: IWindowMeta) {
+    this.meta.next(meta);
+    this.state.next(WindowState.Waiting);
   }
 
   // start the pulling process
@@ -84,7 +80,7 @@ export class MockWindow implements IWindow {
         });
         this.state.next(WindowState.Committed);
       }
-    }, 100);
+    }, this.mockDelay);
   }
 
   public containsTimestamp(timestamp: Date): boolean {
