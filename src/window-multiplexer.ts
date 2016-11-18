@@ -10,7 +10,7 @@ import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { Subscription } from 'rxjs/Subscription';
 import { Subject } from 'rxjs/Subject';
 
-interface IWindowFactoryReference {
+export interface IWindowFactoryReference {
   factory: WindowFactory;
   identifier: string;
 }
