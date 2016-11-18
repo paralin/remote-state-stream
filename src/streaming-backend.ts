@@ -2,6 +2,9 @@ import { Subject } from 'rxjs/Subject';
 import { IWindowData } from './window';
 import {
   StreamEntry,
+  // make the compiler happy
+  // tslint:disable-next-line
+  StreamEntryType,
   MemoryBackend,
 } from '@fusebot/state-stream';
 
