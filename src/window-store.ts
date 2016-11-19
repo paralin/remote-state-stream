@@ -1,6 +1,7 @@
 import {
   IWindow,
   WindowState,
+  WindowFactory,
 } from './window';
 
 // When we need a window for a period of time.
@@ -20,7 +21,7 @@ export class WindowStore {
   // Current window pending scope.
   private pendingWindow: IWindow;
 
-  constructor(private windowFactory: () => IWindow) {
+  constructor(private windowFactory: WindowFactory) {
   }
 
   // Build a window for a period of time, or null for live.
