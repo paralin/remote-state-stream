@@ -39,6 +39,10 @@ export class MockWindow implements IWindow {
     // Simulate fetching early + late bound
     let closestTime = midTimestamp || new Date();
     let snap = this.dataset.getSnapshotBefore(closestTime);
+    if (!snap) {
+      this.state.next(WindowState.OutOfRange);
+      return;
+    }
     let endSnap: StreamEntry = null;
     if (midTimestamp) {
       endSnap = this.dataset.getEntryAfter(closestTime, StreamEntryType.StreamEntrySnapshot);

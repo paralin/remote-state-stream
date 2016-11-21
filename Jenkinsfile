@@ -23,8 +23,8 @@ node {
         #!/bin/bash
         source ./scripts/jenkins_env.bash
         enable-npm-proxy
-        npm install
-        npm prune
+        npm i -g yarn
+        yarn install
       '''
     }
 
