@@ -22,7 +22,7 @@
     "@fusebot/fusecloud-common": "^0.14.0",
     "@fusebot/state-stream": "^0.2.0",
     "grpc-bus": "^0.2.0",
-    "rxjs": "^5.0.0-rc.2"
+    "rxjs": "5.0.0-rc.4"
   },
   "devDependencies": {
     "@fusebot/jenkins-publish-condition": "^0.1.0",

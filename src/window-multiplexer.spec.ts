@@ -88,6 +88,18 @@ describe('WindowMultiplexer', () => {
     });
   });
 
+  it('should pull data correctly', (done) => {
+    multi.initWithMidTimestamp(mockTime(-5));
+    multi.state.subscribe((state) => {
+      if (state === WindowState.Waiting) {
+        multi.activate();
+      }
+      if (state === WindowState.Committed) {
+        done();
+      }
+    });
+  });
+
   afterEach(() => {
     if (multi) {
       multi.dispose();
