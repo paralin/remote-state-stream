@@ -1,16 +1,11 @@
 node {
   stage ("node v6") {
-    sh '''
-      #!/bin/bash
-      set +x
-      source ~/.nvm/nvm.sh
-      nvm install 6
-    '''
+    sh 'init-node-ci 6'
   }
 
   stage ("scm") {
     checkout scm
-    sh './scripts/jenkins_setup_git.bash'
+    sh 'init-jenkins-node-scripts'
   }
 
   env.CACHE_CONTEXT='remote-state-stream'
