@@ -50,19 +50,25 @@ export class RemoteStream {
     await cursor.init();
     let latestTimestamp = new Date(cursor.computedTimestamp.getTime());
     let subscriptions: Subscription[] = [];
-    let nextLiveWindow = async () => {
+    let clearSubs = () => {
       // Clear our old subscriptions
       for (let sub of subscriptions) {
         sub.unsubscribe();
       }
       subscriptions.length = 0;
-
+    };
+    let nextLiveWindow = async () => {
+      clearSubs();
       let liveWindow = await this.backend.windowStore.buildWindow();
       subscriptions.push(liveWindow.state.subscribe((state) => {
-        if (state === WindowState.Failed ||
-            state === WindowState.OutOfRange ||
-            state === WindowState.Committed) {
+        if (state === WindowState.Committed) {
           nextLiveWindow();
+          return;
+        }
+        if (state === WindowState.Failed) {
+          cursor.error = liveWindow.error.value || new Error('Window entered failed state.');
+          cursor.isReady = false;
+          clearSubs();
           return;
         }
       }));
