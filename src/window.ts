@@ -18,14 +18,10 @@ export enum WindowState {
   Waiting,
   // Pulling data
   Pulling,
+  // Initial dataset pulled, current data is live.
+  Live,
   // Data pull done, no more will come.
   Committed,
-  // Data pull done, entries will be added.
-  Live,
-  // Window is out of range (no data).
-  OutOfRange,
-  // Window is failed (some network error).
-  Failed,
 }
 
 // Metadata about a window
@@ -39,6 +35,7 @@ export interface IWindowMeta {
 // Storage + events.
 export interface IWindowData extends IStorageBackend {
   entryAdded: Subject<StreamEntry>;
+  replayEntries(subject: Subject<StreamEntry>): void;
 }
 
 // A window is a snapshot of a period of time.
@@ -46,10 +43,6 @@ export interface IWindow {
   state: BehaviorSubject<WindowState>;
   data: IWindowData;
   meta: BehaviorSubject<IWindowMeta>;
-  // If we failed to reach Committed state, this will push an error.
-  error: BehaviorSubject<any>;
-  // Call when disposed
-  disposed: Subject<void>;
 
   initLive(): void;
   initWithMidTimestamp(midTimestamp: Date): void;
@@ -57,8 +50,9 @@ export interface IWindow {
 
   containsTimestamp(midTimestamp: Date): boolean;
 
-  // start the pulling process
+  // Start the pulling process. This may be called many times.
   activate(): void;
 
+  // Kill any ongoing operations, enter terminal state.
   dispose(): void;
 }

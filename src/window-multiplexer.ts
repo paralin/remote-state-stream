@@ -8,7 +8,9 @@ import {
 import { StreamingBackend } from './streaming-backend';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { Subscription } from 'rxjs/Subscription';
-import { Subject } from 'rxjs/Subject';
+import {
+  WindowErrors,
+} from './errors';
 
 export interface IWindowFactoryReference {
   factory: WindowFactory;
@@ -33,15 +35,12 @@ export class WindowMultiplexer implements IWindow {
   public state = new BehaviorSubject<WindowState>(WindowState.Pending);
   public data: IWindowData = new StreamingBackend();
   public meta = new BehaviorSubject<IWindowMeta>(null);
-  // If we failed to reach Committed state, this will push an error.
-  public error = new BehaviorSubject<any>(null);
-  // Call when disposed
-  public disposed = new Subject<void>();
 
   private factoryReferences: { [id: string]: IWindowFactoryReference } = {};
   private factoryInstances: { [factoryIdentifier: string]: IMultiplexedWindow } = {};
   private inited = false;
   private activated = false;
+  private isolated = false;
   private settings: IWindowMultiplexerSettings;
 
   constructor(factories: IWindowFactoryReference[] = []) {
@@ -133,14 +132,13 @@ export class WindowMultiplexer implements IWindow {
   }
 
   public dispose() {
-    if ([WindowState.Failed, WindowState.Committed].indexOf(this.state.value) === -1) {
-      this.state.next(WindowState.Failed);
+    if (!this.state.hasError && this.state.value !== WindowState.Committed) {
+      this.state.error(WindowErrors.GenericFailure());
     }
     // delete all factories
     for (let factid in Object.keys(this.factoryInstances)) {
       this.deleteFactory(this.factoryReferences[factid]);
     }
-    this.disposed.next();
   }
 
   private deleteFactoryInstances(id: string) {
@@ -171,7 +169,7 @@ export class WindowMultiplexer implements IWindow {
 
   // Instantiate a factory, actuate
   private instanceFactory(ref: IWindowFactoryReference) {
-    if (this.state.value === WindowState.Committed) {
+    if (this.state.value === WindowState.Committed || this.isolated) {
       return;
     }
     let window: IMultiplexedWindow = this.factoryInstances[ref.identifier];
@@ -240,12 +238,19 @@ export class WindowMultiplexer implements IWindow {
     this.actuateAll();
   }
 
+  // Isolates a window and mirrors its state.
   private windowReady(window: IMultiplexedWindow) {
     let wind = window.window;
+    this.isolated = true;
     if (this.meta.value !== wind.meta.value && wind.meta.value) {
       this.meta.next(wind.meta.value);
     }
-    this.state.next(wind.state.value);
+    if (this.state.value !== wind.state.value) {
+      this.state.next(wind.state.value);
+    }
+    if (Object.keys(this.factoryInstances).length < 2) {
+      return;
+    }
     this.isolateWindow(window);
   }
 
@@ -264,10 +269,11 @@ export class WindowMultiplexer implements IWindow {
     this.factoryInstances[window.factoryIdentifier] = window;
   }
 
-  private windowFailed(window: IMultiplexedWindow) {
+  private windowFailed(window: IMultiplexedWindow, error: any) {
     this.deleteFactoryInstances(window.factoryIdentifier);
     // If we have no sub-windows left, fail out.
     if (Object.keys(this.factoryInstances).length === 0) {
+      this.state.error(error);
       this.dispose();
     } else {
       this.actuateAll();
@@ -278,51 +284,42 @@ export class WindowMultiplexer implements IWindow {
     let wind = window.window;
     let subs = window.subscriptions;
     let lastState = WindowState.Pending;
-    subs.push(wind.disposed.subscribe(() => {
-      if (window.disposed) {
-        return;
-      }
-      if (wind.state.value === WindowState.Failed || wind.state.value === WindowState.OutOfRange) {
-        this.windowFailed(window);
-        return;
-      }
-    }));
     subs.push(wind.data.entryAdded.subscribe((entry) => {
       if (window.disposed) {
         return;
       }
-      if (Object.keys(this.factoryInstances).length !== 1) {
-        this.windowReady(window);
-      }
+      this.windowReady(window);
       this.data.saveEntry(entry);
     }));
     subs.push(wind.state.subscribe((state) => {
-      // We can't handle transitions from Waiting -> Pending or so.
+      // We can't handle invalid transitions from Waiting -> Pending or so.
       if (state === lastState || state < lastState || window.disposed) {
         return;
       }
-      if (state === WindowState.Failed || state === WindowState.OutOfRange) {
-        this.windowFailed(window);
-      } else if (state === WindowState.Waiting && window.window.meta.value) {
+      if (state === WindowState.Waiting && window.window.meta.value) {
         if (this.state.value === WindowState.Pending) {
           this.windowResolvedMeta(window);
         }
       } else if (state === WindowState.Committed || state === WindowState.Live) {
         this.windowReady(window);
       }
+    }, (error) => {
+      this.windowFailed(window, error);
     }));
     subs.push(wind.meta.subscribe((meta) => {
       if (this.state.value === WindowState.Pending &&
           !this.meta.value &&
           meta) {
-        this.meta.next(meta);
-        this.state.next(WindowState.Waiting);
+        this.windowResolvedMeta(window);
       }
     }));
   }
 
   private clearWindowHandlers(window: IMultiplexedWindow) {
     for (let sub of window.subscriptions) {
+      if (!sub || sub.closed) {
+        continue;
+      }
       sub.unsubscribe();
     }
     window.subscriptions.length = 0;
@@ -371,11 +368,23 @@ export class WindowMultiplexerFactory {
     return () => {
       let mp = new WindowMultiplexer(this.factoryReferences);
       this.activeMultiplexers.push(mp);
-      mp.disposed.subscribe(() => {
+      let cleanedup = false;
+      let cleanupMulti = () => {
+        if (cleanedup) {
+          return;
+        }
+        cleanedup = true;
         let idx = this.activeMultiplexers.indexOf(mp);
         if (idx >= 0) {
           this.activeMultiplexers.splice(idx, 1);
         }
+      };
+      mp.state.subscribe((state) => {
+        if (state >= WindowState.Pulling) {
+          cleanupMulti();
+        }
+      }, (err) => {
+        cleanupMulti();
       });
       return mp;
     };

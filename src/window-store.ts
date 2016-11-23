@@ -3,6 +3,7 @@ import {
   WindowState,
   WindowFactory,
 } from './window';
+import { Subscription } from 'rxjs/Subscription';
 
 // When we need a window for a period of time.
 interface IPendingWindowInterest {
@@ -39,56 +40,82 @@ export class WindowStore {
     });
   }
 
+  // Build a window and wait for state.
+  public async buildWindowWithState(midTime: Date, targetState: WindowState): Promise<IWindow> {
+    let window = await this.buildWindow(midTime);
+    return this.waitForWindowState(window, targetState);
+  }
+
+  // Wait for a window to reach at least a target state.
+  // Note: this will activate the window if necessary.
+  public async waitForWindowState(window: IWindow, targetState: WindowState): Promise<IWindow> {
+    return new Promise<IWindow>((_resolve, reject) => {
+      let sub: Subscription;
+      let resolve = (val: IWindow) => {
+        if (sub && !sub.closed) {
+          sub.unsubscribe();
+        }
+        _resolve(val);
+      };
+      sub = window.state.subscribe((state) => {
+        if (state >= targetState) {
+          resolve(window);
+        } else if (state === WindowState.Waiting) {
+          window.activate();
+        }
+      }, (error) => {
+        reject(error);
+      });
+    });
+  }
+
   // Check if we can promote a pending window interest, etc.
   private procInterest() {
     // Check if we can promote a pending interest to a window.
-    if (!this.pendingWindow && this.pendingInterests.length) {
-      // Grab the first interest
-      let interest = this.pendingInterests.splice(0, 1)[0];
-      let exist = this.getExistingWindow(interest.timestamp);
-      if (exist) {
-        interest.filledCallback.resolve(exist);
-        // proc interest again
-        this.procInterest();
-        return;
-      }
-
-      this.pendingWindow = this.windowFactory();
-      let stateSub = this.pendingWindow.state.subscribe((state) => {
-        if (state === WindowState.Pending) {
-          return;
-        }
-        stateSub.unsubscribe();
-        if (state === WindowState.Failed || state === WindowState.OutOfRange) {
-          this.pendingWindow = null;
-          this.procInterest();
-          return;
-        }
-        this.promotePendingWindow();
-        this.procInterest();
-      });
-      interest.filledCallback.resolve(this.pendingWindow);
-      if (interest.timestamp) {
-        this.pendingWindow.initWithMidTimestamp(interest.timestamp);
-      } else {
-        this.pendingWindow.initLive();
-      }
+    if (this.pendingWindow || !this.pendingInterests.length) {
+      return;
     }
 
-    if (this.pendingWindow) {
-      // Check if we can fill any interests with the pending window.
-      this.fillInterestWithPendingWindow();
+    // Grab the first interest
+    let interest = this.pendingInterests.splice(0, 1)[0];
+    let exist = this.getExistingWindow(interest.timestamp);
+    if (exist) {
+      interest.filledCallback.resolve(exist);
+      // proc interest again
+      this.procInterest();
+      return;
+    }
+
+    let pendingWindowFail = (error: any) => {
+      this.pendingWindow = null;
+      interest.filledCallback.reject(error);
+      this.procInterest();
+    };
+    this.pendingWindow = this.windowFactory();
+    this.waitForWindowState(this.pendingWindow, WindowState.Pending)
+      .then((pendingWindow) => {
+        let metasub = pendingWindow.meta.subscribe((meta) => {
+          if (!meta) {
+            return;
+          }
+          metasub.unsubscribe();
+          this.insertWindow(this.pendingWindow);
+          this.pendingWindow = null;
+          interest.filledCallback.resolve(pendingWindow);
+          this.procInterest();
+        }, pendingWindowFail);
+      })
+      .catch(pendingWindowFail);
+    if (interest.timestamp) {
+      this.pendingWindow.initWithMidTimestamp(interest.timestamp);
+    } else {
+      this.pendingWindow.initLive();
     }
   }
 
   private registerInterest(interest: IPendingWindowInterest) {
     this.pendingInterests.push(interest);
     this.procInterest();
-  }
-
-  private promotePendingWindow() {
-    this.insertWindow(this.pendingWindow);
-    this.pendingWindow = null;
   }
 
   // Insert a non-pending window
@@ -108,23 +135,6 @@ export class WindowStore {
     }
     // Put it at the beginning.
     this.windows.splice(0, 0, window);
-  }
-
-  private fillInterestWithPendingWindow() {
-    // Check if any pending interests can be solved by the active pending window.
-    let newPendingInterests: IPendingWindowInterest[] = [];
-    for (let interest of this.pendingInterests) {
-      if (this.pendingWindow &&
-          this.pendingWindow.state.value !== WindowState.Pending &&
-          this.pendingWindow.containsTimestamp(interest.timestamp)) {
-        interest.filledCallback.resolve(this.pendingWindow);
-        continue;
-      }
-
-      // If we can't fill it, push to the new array.
-      newPendingInterests.push(interest);
-    }
-    this.pendingInterests = newPendingInterests;
   }
 
   private getExistingWindow(midTime: Date): IWindow {

@@ -5,7 +5,6 @@ import {
   IWindowMeta,
 } from '../window';
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
-import { Subject } from 'rxjs/Subject';
 import {
   StreamEntry,
   StreamEntryType,
@@ -14,17 +13,14 @@ import {
 import { mockDataset } from './mock-data';
 import { mockTime } from './time';
 import { StreamingBackend } from '../streaming-backend';
+import { WindowErrors } from '../errors';
 
 export class MockWindow implements IWindow {
   public state: BehaviorSubject<WindowState> = new BehaviorSubject<WindowState>(WindowState.Pending);
   public data: IWindowData = new StreamingBackend();
   public meta = new BehaviorSubject<IWindowMeta>(null);
-  // If we failed to reach Committed state, this will push an error.
-  public error = new BehaviorSubject<any>(null);
-  // Call when disposed
-  public disposed = new Subject<void>();
-  private isDisposed = false;
 
+  private isDisposed = false;
   private dataset = new MemoryBackend(mockDataset());
 
   constructor(private mockDelay: number = 100) {
@@ -40,7 +36,7 @@ export class MockWindow implements IWindow {
     let closestTime = midTimestamp || new Date();
     let snap = this.dataset.getSnapshotBefore(closestTime);
     if (!snap) {
-      this.state.next(WindowState.OutOfRange);
+      this.state.error(WindowErrors.OutOfRange());
       return;
     }
     let endSnap: StreamEntry = null;
@@ -102,9 +98,8 @@ export class MockWindow implements IWindow {
       return;
     }
     this.isDisposed = true;
-    if ([WindowState.Failed, WindowState.Committed].indexOf(this.state.value) === -1) {
-      this.state.next(WindowState.Failed);
+    if (!this.state.hasError && this.state.value !== WindowState.Committed) {
+      this.state.error(WindowErrors.GenericFailure());
     }
-    this.disposed.next();
   }
 }

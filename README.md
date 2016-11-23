@@ -43,3 +43,19 @@ When the state stream asks for a snapshot before:
 
  - Check if we have a window covering that range, if so, skip
  - Create pending window
+
+Some things to do:
+
+ - [ ] Make sure that the storage on a window marks the Subject as complete if the data is done coming through.
+ - [x] Move errors into the subject as well (subjects support the concept of aborting if there's an error)
+ - [x] Create a subscribe mechanism for cursors (live cursors).
+ - [x] Internally use a better rxjs pattern. Use more subjects and operators, etc to manage streams of data.
+
+Live Window Implementation
+==========================
+
+Implementing live cursors is actually a bit difficult, for one reason: we have no way of knowing if anyone is still using the cursor. Similarly, we have no way of resetting the singleton cursor instance we create, in the case we skip some data, without causing some issues.
+
+Solution: keep a single live cursor. When we get a new live window, feed it the early bound snapshot immediately. This should not cause any issues unless the snapshot is earlier than the latest timestamp on the cursor.
+
+In terms of observing the cursor: clients subscribe to the live cursor, get a rxjs Subscription, and should unsubscribe when possible. Also, if there's an error in the process of updating the cursor, the system will mark all the subscriptions as errored and kill the cursor.

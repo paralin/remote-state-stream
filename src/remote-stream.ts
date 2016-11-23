@@ -1,46 +1,26 @@
-import {
-  RemoteStreamBackend,
-} from './remote-stream-backend';
+import { RemoteStreamBackend } from './remote-stream-backend';
 import {
   Cursor,
   CursorType,
+  StreamEntry,
 } from '@fusebot/state-stream';
 import {
-  IWindow,
   WindowState,
 } from './window';
-import {
-  WindowStore,
-} from './window-store';
-import {
-  Subscription,
-} from 'rxjs/Subscription';
-import {
-  BehaviorSubject,
-} from 'rxjs/BehaviorSubject';
-
-export interface IRemoteCursorHandle {
-  cursor: Cursor;
-  ended: BehaviorSubject<any>;
-  stop(): void;
-}
+import { WindowStore } from './window-store';
+import { Subject } from 'rxjs/Subject';
+import { Subscription } from 'rxjs/Subscription';
+import { Subscriber } from 'rxjs/Subscriber';
 
 export class RemoteStream {
   private backend: RemoteStreamBackend;
-  private liveCursorPromise: Promise<IRemoteCursorHandle>;
+  private liveCursor: Cursor;
+  private liveCursorSubscribers: { [identifier: string]: Subscriber<Cursor> } = {};
+  private liveCursorSubscriberCounter = 0;
+  private liveCursorSubscriptions: Subscription[] = [];
 
   constructor(private windowStore: WindowStore) {
     this.backend = new RemoteStreamBackend(windowStore);
-  }
-
-  public get liveCursor(): Promise<IRemoteCursorHandle> {
-    if (!this.liveCursorPromise) {
-      this.liveCursorPromise = this.buildLiveCursor();
-      this.liveCursorPromise.catch(() => {
-        this.liveCursorPromise = null;
-      });
-    }
-    return this.liveCursorPromise;
   }
 
   public buildCursor(cursorType: CursorType) {
@@ -50,80 +30,139 @@ export class RemoteStream {
     return new Cursor(this.backend, cursorType);
   }
 
+  // Request a live cursor.
+  public liveSubscribe(next: (cursor: Cursor) => void): Subscription {
+    let sub = Subscriber.create<Cursor>(next);
+    let identifier = this.liveCursorSubscriberCounter++ + '';
+    this.liveCursorSubscribers[identifier] = sub;
+    sub.add(() => {
+      delete this.liveCursorSubscribers[identifier];
+      this.procLiveCursor();
+    });
+    this.procLiveCursor();
+    return sub;
+  }
+
   public dispose() {
     this.backend.dispose();
   }
 
-  private async buildLiveCursor(): Promise<IRemoteCursorHandle> {
-    // Initialize the live cursor.
-    let cursor = new Cursor(this.backend, CursorType.WriteCursor);
-    await cursor.init();
-    let latestTimestamp = new Date(cursor.computedTimestamp.getTime());
-    let subscriptions: Subscription[] = [];
-    let endedSubject: BehaviorSubject<any> = new BehaviorSubject<any>(null);
-    let clearSubs = () => {
-      // Clear our old subscriptions
-      for (let sub of subscriptions) {
+  // Check if we need to start/stop the live cursor mechanism.
+  private procLiveCursor() {
+    let haveLiveCursor = !!Object.keys(this.liveCursorSubscribers).length;
+    if (haveLiveCursor && !this.liveCursor) {
+      this.initLiveCursor();
+    }
+    if (this.liveCursor && !haveLiveCursor) {
+      this.terminateLiveCursor(new Error('No subscribers remain.'));
+    }
+  }
+
+  private pushLiveCursor(cursor: Cursor) {
+    this.liveCursor = cursor;
+    for (let id in this.liveCursorSubscribers) {
+      if (!this.liveCursorSubscribers.hasOwnProperty(id) ||
+          this.liveCursorSubscribers[id].closed) {
+        continue;
+      }
+      this.liveCursorSubscribers[id].next(cursor);
+    }
+  }
+
+  private terminateLiveCursor(err?: any) {
+    this.liveCursor = null;
+    for (let id of Object.keys(this.liveCursorSubscribers)) {
+      if (!this.liveCursorSubscribers.hasOwnProperty(id) ||
+          this.liveCursorSubscribers[id].closed) {
+        continue;
+      }
+      if (err) {
+        this.liveCursorSubscribers[id].error(err);
+      } else {
+        this.liveCursorSubscribers[id].complete();
+      }
+      delete this.liveCursorSubscribers[id];
+    }
+    this.liveCursorSubscriberCounter = 0;
+    this.clearLiveCursorSubscriptions();
+  }
+
+  private clearLiveCursorSubscriptions() {
+    for (let sub of this.liveCursorSubscriptions) {
+      if (sub && !sub.closed) {
         sub.unsubscribe();
       }
-      subscriptions.length = 0;
-    };
-    let ended = false;
-    let liveWindow: IWindow;
-    let nextLiveWindow = async () => {
-      clearSubs();
-      if (ended) {
-        return;
-      }
-      liveWindow = await this.backend.windowStore.buildWindow();
-      subscriptions.push(liveWindow.state.subscribe((state) => {
-        if (ended) {
-          return;
-        }
-        if (state === WindowState.Committed) {
-          nextLiveWindow().catch((err) => {
-            if (ended) {
-              return;
-            }
-            endedSubject.next(err);
-          });
-          return;
-        }
-        if (state === WindowState.Failed) {
-          endedSubject.next(liveWindow.error.value || new Error('Window entered failed state.'));
-          clearSubs();
-          return;
-        }
-      }));
-      subscriptions.push(liveWindow.data.entryAdded.subscribe((entry) => {
-        if (liveWindow.state.value !== WindowState.Live) {
-          return;
-        }
-        if (entry.timestamp.getTime() <= latestTimestamp.getTime()) {
-          return;
-        }
-        latestTimestamp = new Date(entry.timestamp.getTime());
-        cursor.handleEntry(entry);
-      }));
-    };
-    // Grab a live window. When the window becomes committed, do it again.
-    await nextLiveWindow();
-    let endedSub = endedSubject.subscribe((err) => {
-      if (!err) {
-        return;
-      }
-      endedSub.unsubscribe();
-      this.liveCursorPromise = null;
+    }
+    this.liveCursorSubscriptions.length = 0;
+  }
+
+  private initLiveCursor() {
+    let cursor = new Cursor(this.backend, CursorType.WriteCursor);
+    this.pushLiveCursor(cursor);
+    cursor.init().then(() => {
+      this.guardedNextLiveWindow();
+    }).catch((err) => {
+      this.terminateLiveCursor(err);
     });
-    return {
-      ended: endedSubject,
-      stop: () => {
-        ended = true;
-        if (liveWindow) {
-          liveWindow.dispose();
+  }
+
+  private async guardedNextLiveWindow(): Promise<void> {
+    this.clearLiveCursorSubscriptions();
+    if (!this.liveCursor) {
+      return;
+    }
+    try {
+      await this.nextLiveWindow();
+    } catch (e) {
+      this.terminateLiveCursor(e);
+    }
+  }
+
+  private async nextLiveWindow(): Promise<void> {
+    if (!this.liveCursor) {
+      return;
+    }
+    let window = await this.windowStore.buildWindowWithState(null, WindowState.Waiting);
+    // Create a subject for the replay.
+    let replaySubject = new Subject<StreamEntry>();
+    // Create a general subject we will use for new data.
+    let dataSubject = new Subject<StreamEntry>();
+
+    // Handle any new incoming entries in correct order here.
+    this.liveCursorSubscriptions.push(dataSubject.subscribe((nextEntry) => {
+      if (nextEntry.timestamp.getTime() <= this.liveCursor.computedTimestamp.getTime()) {
+        return;
+      }
+      this.liveCursor.handleEntry(nextEntry);
+    }, (err) => {
+      this.terminateLiveCursor(err);
+    }, () => {
+      this.guardedNextLiveWindow();
+    }));
+
+    this.liveCursorSubscriptions.push(replaySubject.subscribe((data) => {
+      dataSubject.next(data);
+    }, (err) => {
+      dataSubject.error(err);
+    }, () => {
+      this.liveCursorSubscriptions.push(window.data.entryAdded.subscribe((entry) => {
+        dataSubject.next(entry);
+      }, (err) => {
+        dataSubject.error(err);
+      }, () => {
+        dataSubject.complete();
+      }));
+      this.liveCursorSubscriptions.push(window.state.subscribe((state) => {
+        if (state === WindowState.Waiting) {
+          window.activate();
+        } else if (state === WindowState.Committed) {
+          this.guardedNextLiveWindow();
         }
-      },
-      cursor,
-    };
+      }, (err) => {
+        this.terminateLiveCursor(err);
+      }));
+    }));
+
+    window.data.replayEntries(replaySubject);
   }
 }
