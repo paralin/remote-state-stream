@@ -41,7 +41,7 @@
     "semantic-release": "^4.3.5",
     "ts-node": "^1.4.1",
     "tslint": "^4.0.2",
-    "typescript": "2.1.2"
+    "typescript": "2.1.1"
   },
   "release": {
     "verifyConditions": "@fusebot/jenkins-publish-condition"
@@ -50,6 +50,5 @@
     "commitizen": {
       "path": "./node_modules/cz-conventional-changelog"
     }
-  },
-  "version": "0.2.1"
+  }
 }
