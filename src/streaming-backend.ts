@@ -22,6 +22,13 @@ export class StreamingBackend extends MemoryBackend implements IWindowData {
     this.entryAdded.next(entry);
   }
 
+  public replayEntries(subject: Subject<StreamEntry>) {
+    for (let entry of this.entries) {
+      subject.next(entry);
+    }
+    subject.complete();
+  }
+
   public reset() {
     this.entries = [];
   }

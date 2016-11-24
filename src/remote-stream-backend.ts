@@ -4,13 +4,9 @@ import {
   StreamEntryType,
 } from '@fusebot/state-stream';
 import {
-  Subscription,
-} from 'rxjs/Subscription';
-import {
   WindowStore,
 } from './window-store';
 import {
-  IWindow,
   WindowState,
 } from './window';
 import {
@@ -21,48 +17,13 @@ export class RemoteStreamBackend implements IStorageBackend {
   constructor(public windowStore: WindowStore) {
   }
 
-  // Builds a window not in pending state.
-  public async resolveWindowForTimestamp(timestamp: Date): Promise<IWindow> {
-    let window = await this.windowStore.buildWindow(timestamp);
-    return new Promise<IWindow>((resolve, reject) => {
-      let sub: Subscription;
-      let failedSub: Subscription;
-      let clearSub = () => {
-        if (sub) {
-          sub.unsubscribe();
-        }
-        if (failedSub) {
-          failedSub.unsubscribe();
-        }
-      };
-      sub = window.state.subscribe((state) => {
-        if (state === WindowState.Waiting) {
-          window.activate();
-        }
-        // todo: handle failed state here?
-        if (state === WindowState.Committed || state === WindowState.Live) {
-          clearSub();
-          resolve(window);
-          return;
-        }
-      });
-      failedSub = window.error.subscribe((err: any) => {
-        if (!err) {
-          return;
-        }
-        clearSub();
-        reject(err);
-      });
-    });
-  }
-
   public async getSnapshotBefore(timestamp: Date): Promise<StreamEntry> {
-    let window = await this.resolveWindowForTimestamp(timestamp);
+    let window = await this.windowStore.buildWindowWithState(timestamp, WindowState.Live);
     return toPromise<StreamEntry>(window.data.getSnapshotBefore(timestamp));
   }
 
   public async getEntryAfter(timestamp: Date, filterType: StreamEntryType): Promise<StreamEntry> {
-    let window = await this.resolveWindowForTimestamp(timestamp);
+    let window = await this.windowStore.buildWindowWithState(timestamp, WindowState.Live);
     return toPromise<StreamEntry>(window.data.getEntryAfter(timestamp, filterType));
   }
 

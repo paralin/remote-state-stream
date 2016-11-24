@@ -12,7 +12,7 @@
   "scripts": {
     "test": "npm run lint && npm run mocha",
     "ci": "npm run build && npm run test",
-    "lint": "tslint -c tslint.json src/**/*.ts --type-check",
+    "lint": "tslint --project tsconfig.json -c tslint.json --type-check",
     "build": "tsc && ./scripts/build_touchups.bash",
     "mocha": "ts-node node_modules/istanbul/lib/cli.js cover -e .ts  -x \"*.d.ts\" -x \"*.spec.ts\" ./test/run_tests.js",
     "mocha-nocover": "ts-node ./test/run_tests.js",

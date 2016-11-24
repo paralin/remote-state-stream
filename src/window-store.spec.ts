@@ -13,6 +13,9 @@ import {
 import {
   WindowMultiplexerFactory,
 } from './window-multiplexer';
+import {
+  WindowErrors,
+} from './errors';
 
 describe('WindowStore', () => {
   let store: WindowStore;
@@ -35,6 +38,8 @@ describe('WindowStore', () => {
         if (state === WindowState.Committed) {
           done();
         }
+      }, (err) => {
+        expect(err.message).toBe(WindowErrors.GenericFailure().message);
       });
     });
   });
@@ -49,6 +54,8 @@ describe('WindowStore', () => {
         if (state === WindowState.Committed) {
           committedComplete = true;
         }
+      }, (err) => {
+        expect(err.message).toBe(WindowErrors.GenericFailure().message);
       });
     });
     store.buildWindow(mockTime(-8)).then((window) => {
@@ -60,6 +67,8 @@ describe('WindowStore', () => {
           expect(committedComplete).toBe(true);
           done();
         }
+      }, (err) => {
+        expect(err.message).toBe(WindowErrors.GenericFailure().message);
       });
     });
   });
@@ -75,14 +84,14 @@ describe('WindowStore', () => {
           // call twice to hit line checking isDisposed
           window.dispose();
         }
-        if (state === WindowState.Failed) {
-          done();
-        }
+      }, (err) => {
+        expect(err.message).toBe(WindowErrors.GenericFailure().message);
+        done();
       });
     });
   });
 
   afterEach(() => {
-    store.dispose();
+    // store.dispose();
   });
 });

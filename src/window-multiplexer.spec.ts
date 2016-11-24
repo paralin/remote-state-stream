@@ -10,6 +10,9 @@ import {
 import {
   WindowState,
 } from './window';
+import {
+  WindowErrors,
+} from './errors';
 
 describe('WindowMultiplexer', () => {
   let multi: WindowMultiplexer;
@@ -25,10 +28,13 @@ describe('WindowMultiplexer', () => {
 
   it('should fetch meta from mid timestamp properly', (done) => {
     multi.state.subscribe((state) => {
+      expect(state).toBeLessThanOrEqual(WindowState.Waiting);
       if (state === WindowState.Waiting) {
         expect(multi.meta.value).not.toBe(null);
         done();
       }
+    }, (err) => {
+      expect(err.message).toBe(WindowErrors.GenericFailure().message);
     });
     multi.initWithMidTimestamp(mockTime(-5));
   });
@@ -75,6 +81,8 @@ describe('WindowMultiplexer', () => {
       if (state === WindowState.Live) {
         done();
       }
+    }, (err) => {
+      expect(err.message).toBe(WindowErrors.GenericFailure().message);
     });
   });
 
@@ -97,12 +105,20 @@ describe('WindowMultiplexer', () => {
       if (state === WindowState.Committed) {
         done();
       }
+    }, (err) => {
+      expect(err.message).toBe(WindowErrors.GenericFailure().message);
     });
   });
 
   afterEach(() => {
     if (multi) {
-      multi.dispose();
+      /*
+      try {
+        multi.dispose();
+      } catch (e) {
+        //
+      }
+      */
       multi = null;
     }
   });
