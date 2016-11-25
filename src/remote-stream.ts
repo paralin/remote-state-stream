@@ -31,8 +31,9 @@ export class RemoteStream {
   }
 
   // Request a live cursor.
-  public liveSubscribe(next: (cursor: Cursor) => void): Subscription {
-    let sub = Subscriber.create<Cursor>(next);
+  public liveSubscribe(next: (cursor: Cursor) => void,
+                       error?: (e?: any) => void): Subscription {
+    let sub = Subscriber.create<Cursor>(next, error);
     let identifier = this.liveCursorSubscriberCounter++ + '';
     this.liveCursorSubscribers[identifier] = sub;
     sub.add(() => {
