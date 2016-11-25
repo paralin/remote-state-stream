@@ -19,9 +19,9 @@
     "semantic-release": "semantic-release pre && npm publish && semantic-release post"
   },
   "dependencies": {
-    "@fusebot/fusecloud-common": "~0.16.0",
-    "@fusebot/state-stream": "^0.3.0",
-    "grpc-bus": "^0.2.0",
+    "@fusebot/fusecloud-common": "~0.0",
+    "@fusebot/state-stream": "^1.0.0",
+    "grpc-bus": "^1.0.0",
     "rxjs": "5.0.0-rc.4"
   },
   "devDependencies": {
