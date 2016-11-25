@@ -8,3 +8,4 @@ tsconfig.json
 Jenkinsfile
 !lib/
 yarn.lock
+test/
