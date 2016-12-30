@@ -10,7 +10,7 @@
     "url": "git+https://github.com/FuseRobotics/remote-state-stream.git"
   },
   "scripts": {
-    "test": "npm run lint && npm run mocha",
+    "test": "npm run lint && npm run mocha-nocover",
     "ci": "npm run build && npm run test",
     "lint": "tslint --project tsconfig.json -c tslint.json --type-check",
     "build": "tsc && ./scripts/build_touchups.bash",
