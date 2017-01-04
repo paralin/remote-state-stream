@@ -13,33 +13,33 @@ node {
     stage ("cache-download") {
       sh '''
         #!/bin/bash
-        source ./scripts/jenkins_env.bash
-        ./scripts/init_cache.bash
+        source ./jenkins_scripts/jenkins_env.bash
+        ./jenkins_scripts/init_cache.bash ./.yarn-cache/
       '''
     }
 
     stage ("install") {
       sh '''
         #!/bin/bash
-        source ./scripts/jenkins_env.bash
+        source ./jenkins_scripts/jenkins_env.bash
         enable-npm-proxy
         npm i -g yarn
-        yarn install
+        yarn install --cache-folder ./.yarn-cache/
       '''
     }
 
     stage ("cache-upload") {
       sh '''
         #!/bin/bash
-        source ./scripts/jenkins_env.bash
-        ./scripts/finalize_cache.bash
+        source ./jenkins_scripts/jenkins_env.bash
+        ./jenkins_scripts/finalize_cache.bash ./.yarn-cache/
       '''
     }
 
     stage ("test") {
       sh '''
         #!/bin/bash
-        source ./scripts/jenkins_env.bash
+        source ./jenkins_scripts/jenkins_env.bash
         npm run ci
       '''
     }
@@ -47,8 +47,8 @@ node {
     stage ("release") {
       sh '''
         #!/bin/bash
-        source ./scripts/jenkins_env.bash
-        ./scripts/jenkins_release.bash release
+        source ./jenkins_scripts/jenkins_env.bash
+        ./jenkins_scripts/jenkins_release.bash release
       '''
     }
   }
