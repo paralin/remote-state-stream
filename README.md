@@ -1,7 +1,7 @@
 Remote State Stream
 ===================
 
-Consumes `grpc-bus` and `state-stream` and `reporter` to enable a remote state stream locally.
+Consumes `state-stream` and `reporter` to enable a remote state stream locally.
 
 It should:
 
