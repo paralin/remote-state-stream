@@ -43,7 +43,8 @@
     "typescript": "^2.1.0"
   },
   "release": {
-    "verifyConditions": "@fusebot/jenkins-publish-condition"
+    "verifyConditions": "@fusebot/jenkins-publish-condition",
+    "branch": "release"
   },
   "config": {
     "commitizen": {
