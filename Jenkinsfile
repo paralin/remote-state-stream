@@ -48,7 +48,7 @@ node {
       sh '''
         #!/bin/bash
         source ./scripts/jenkins_env.bash
-        ./scripts/jenkins_release.bash
+        ./scripts/jenkins_release.bash release
       '''
     }
   }
