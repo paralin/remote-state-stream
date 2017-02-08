@@ -1,6 +1,8 @@
 Remote State Stream
 ===================
 
+[![Greenkeeper badge](https://badges.greenkeeper.io/FuseRobotics/remote-state-stream.svg?token=eee3ef19ae190dfddcc9df4abf3edeaf4bc65b4184bc29db21a05df5f7b1cfd6)](https://greenkeeper.io/)
+
 Consumes `state-stream` and `reporter` to enable a remote state stream locally.
 
 It should:
