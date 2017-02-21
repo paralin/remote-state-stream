@@ -21,7 +21,7 @@
   "dependencies": {
     "@fusebot/fusecloud-common": "0.*.*",
     "@fusebot/state-stream": "^1.0.0",
-    "rxjs": "^5.0.0"
+    "rxjs": "^5.2.0"
   },
   "devDependencies": {
     "@fusebot/jenkins-publish-condition": "^0.1.0",
